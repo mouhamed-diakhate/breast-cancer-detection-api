@@ -52,6 +52,9 @@ class ModelLoader:
         self.model_path = model_path
         self.model = None
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        print(torch.__version__)
+        print(torch.version.cuda)
+        print(torch.cuda.is_available())
         logger.info(f"Utilisation du device: {self.device}")
         self._load_model()
 
