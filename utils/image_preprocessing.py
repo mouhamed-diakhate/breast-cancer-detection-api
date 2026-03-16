@@ -77,3 +77,28 @@ class ImagePreprocessor:
         tensor = self.transform(img)
         batch  = tensor.unsqueeze(0)
         return batch.numpy()
+
+    def is_mammography(self, image_path: str) -> bool:
+        """
+        Vérification basique pour savoir si l'image ressemble à une mammographie.
+        Hypothèse: Une mammographie est principalement une image en niveaux de gris.
+        """
+        try:
+            img = Image.open(image_path)
+            img = img.convert('RGB')
+            arr = np.array(img)
+            
+            r, g, b = arr[:,:,0], arr[:,:,1], arr[:,:,2]
+            
+            # Différence moyenne entre les canaux
+            diff_rg = np.mean(np.abs(r.astype(int) - g.astype(int)))
+            diff_rb = np.mean(np.abs(r.astype(int) - b.astype(int)))
+            diff_gb = np.mean(np.abs(g.astype(int) - b.astype(int)))
+            
+            # Une mammographie (niveaux de gris) aura une différence très faible
+            # On tolère une petite variation (< 15) pour la compression jpeg ou de légers artefacts
+            is_grayscale = (diff_rg < 15) and (diff_rb < 15) and (diff_gb < 15)
+            
+            return bool(is_grayscale)
+        except Exception:
+            return False

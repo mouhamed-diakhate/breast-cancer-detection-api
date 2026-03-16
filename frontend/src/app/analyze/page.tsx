@@ -5,10 +5,10 @@
 
 "use client";
 
-import { useState } from "react";
-import { ScanSearch, FileImage, AlertCircle, CheckCircle2, XCircle } from "lucide-react";
+import { useState, useEffect } from "react";
+import { ScanSearch, FileImage, AlertCircle, CheckCircle2, XCircle, Cpu } from "lucide-react";
 
-import { analyzeImage, AnalyzeResponse } from "@/lib/api";
+import { analyzeImage, getModels, AnalyzeResponse, ModelEntry } from "@/lib/api";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { ImageDropzone } from "@/components/ui/ImageDropzone";
@@ -22,6 +22,22 @@ export default function AnalyzePage() {
   const [result, setResult] = useState<AnalyzeResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Model selection
+  const [models, setModels] = useState<ModelEntry[]>([]);
+  const [selectedModel, setSelectedModel] = useState<string>("");
+  const [modelsLoading, setModelsLoading] = useState(true);
+
+  useEffect(() => {
+    getModels()
+      .then((list) => {
+        setModels(list);
+        const first = list.find((m) => m.loaded) ?? list[0];
+        if (first) setSelectedModel(first.id);
+      })
+      .catch(() => setModels([]))
+      .finally(() => setModelsLoading(false));
+  }, []);
 
   const handleFileChange = (f: File | null) => {
     setFile(f);
@@ -42,10 +58,14 @@ export default function AnalyzePage() {
     setError(null);
     setResult(null);
     try {
-      const data = await analyzeImage(file);
+      const data = await analyzeImage(file, selectedModel || undefined);
       setResult(data);
-    } catch {
-      setError("Erreur lors de l'analyse. Vérifiez que le backend est disponible.");
+    } catch (err: any) {
+      if (err.response?.data?.error) {
+        setError(err.response.data.error);
+      } else {
+        setError("Erreur lors de l'analyse. Vérifiez que le backend est disponible.");
+      }
     } finally {
       setLoading(false);
     }
@@ -187,12 +207,127 @@ export default function AnalyzePage() {
             </CardBody>
           </Card>
 
+          {/* Sélecteur de modèle */}
+          <Card className="animate-fade-up delay-150">
+            <CardHeader>
+              <span
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 10,
+                  background: "rgba(245,197,24,0.12)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexShrink: 0,
+                }}
+              >
+                <Cpu size={18} color="var(--color-secondary)" />
+              </span>
+              <div>
+                <h2
+                  style={{
+                    fontSize: "1rem",
+                    fontWeight: 600,
+                    fontFamily: "var(--font-display)",
+                  }}
+                >
+                  Choisir le modèle
+                </h2>
+                {selectedModel && (
+                  <p style={{ fontSize: "0.75rem", color: "var(--color-muted)", marginTop: 2 }}>
+                    Sélectionné : <strong>{models.find((m) => m.id === selectedModel)?.name ?? selectedModel}</strong>
+                  </p>
+                )}
+              </div>
+            </CardHeader>
+            <CardBody>
+              {modelsLoading ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                  <Skeleton height={56} borderRadius={12} />
+                  <Skeleton height={56} borderRadius={12} />
+                </div>
+              ) : models.length === 0 ? (
+                <p style={{ color: "var(--color-muted)", fontSize: "0.875rem" }}>
+                  Impossible de charger les modèles. Vérifiez que le backend est disponible.
+                </p>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: "0.625rem" }}>
+                  {models.map((m) => {
+                    const isSelected = selectedModel === m.id;
+                    return (
+                      <button
+                        key={m.id}
+                        onClick={() => setSelectedModel(m.id)}
+                        disabled={!m.loaded}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "0.875rem",
+                          padding: "0.875rem 1rem",
+                          borderRadius: 12,
+                          border: isSelected
+                            ? "1.5px solid var(--color-secondary)"
+                            : "1.5px solid var(--color-border)",
+                          background: isSelected
+                            ? "rgba(245,197,24,0.06)"
+                            : "var(--color-tertiary)",
+                          cursor: m.loaded ? "pointer" : "not-allowed",
+                          opacity: m.loaded ? 1 : 0.5,
+                          textAlign: "left",
+                          transition: "all 0.18s ease",
+                          width: "100%",
+                        }}
+                      >
+                        {/* Radio circle */}
+                        <span
+                          style={{
+                            width: 18,
+                            height: 18,
+                            borderRadius: "50%",
+                            border: isSelected
+                              ? "5px solid var(--color-secondary)"
+                              : "2px solid var(--color-border)",
+                            flexShrink: 0,
+                            transition: "all 0.18s ease",
+                          }}
+                        />
+                        <div>
+                          <p
+                            style={{
+                              fontWeight: 600,
+                              fontSize: "0.875rem",
+                              color: isSelected ? "var(--color-secondary)" : "var(--color-primary)",
+                              fontFamily: "var(--font-display)",
+                            }}
+                          >
+                            {m.name}
+                          </p>
+                          <p
+                            style={{
+                              fontSize: "0.75rem",
+                              color: "var(--color-muted)",
+                              marginTop: 2,
+                              fontFamily: "var(--font-mono)",
+                            }}
+                          >
+                            {m.architecture} {!m.loaded && "· indisponible"}
+                          </p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </CardBody>
+          </Card>
+
           {/* Bouton analyser */}
           <Button
             variant="secondary"
             size="lg"
             onClick={handleAnalyze}
-            disabled={!file}
+            disabled={!file || !selectedModel}
             loading={loading}
             icon={<ScanSearch size={18} />}
             style={{ width: "100%" }}
@@ -200,6 +335,7 @@ export default function AnalyzePage() {
           >
             {loading ? "Analyse en cours..." : "Lancer l'analyse"}
           </Button>
+
 
           {/* Erreur */}
           {error && (

@@ -33,9 +33,17 @@ export interface ModelInfoResponse {
   trainable_params: number;
 }
 
+export interface ModelEntry {
+  id: string;
+  name: string;
+  architecture: string;
+  loaded: boolean;
+}
+
 export interface AnalyzeResponse {
   gradcam_image: string;          // data:image/png;base64,...
   original_filename: string;
+  model_used?: string;
   prediction: {
     confidence: number;
     predicted_class: string;
@@ -57,10 +65,19 @@ export async function getModelInfo(): Promise<ModelInfoResponse> {
   return data;
 }
 
+/** GET /models — Liste des modèles disponibles */
+export async function getModels(): Promise<ModelEntry[]> {
+  const { data } = await api.get<ModelEntry[]>("models");
+  return data;
+}
+
 /** POST /analyze — Analyse d'une image (multipart/form-data) */
-export async function analyzeImage(file: File): Promise<AnalyzeResponse> {
+export async function analyzeImage(file: File, modelId?: string): Promise<AnalyzeResponse> {
   const form = new FormData();
   form.append("file", file);
+  if (modelId) {
+    form.append("model", modelId);
+  }
   const { data } = await api.post<AnalyzeResponse>("analyze", form, {
     headers: { "Content-Type": "multipart/form-data" },
   });

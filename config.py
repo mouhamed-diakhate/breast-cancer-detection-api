@@ -17,6 +17,22 @@ class Config:
     
     # Configuration du modèle
     MODEL_PATH = BASE_DIR / 'models' / 'breast_cancer_model.pth'
+    MODEL_DENSENET_PATH = BASE_DIR / 'models' / 'mammography_model_v3_densenet'
+    
+    AVAILABLE_MODELS = {
+        'resnet18': {
+            'name': 'ResNet18 (v1)',
+            'architecture': 'ResNet18',
+            'path_key': 'MODEL_PATH',
+            'type': 'pth',
+        },
+        'densenet': {
+            'name': 'DenseNet (v3)',
+            'architecture': 'DenseNet',
+            'path_key': 'MODEL_DENSENET_PATH',
+            'type': 'torchscript',
+        },
+    }
     
     # Configuration des images
     IMG_SIZE = (224, 224)  # Taille standard pour les modèles pré-entraînés
